@@ -2,20 +2,44 @@
 /**
  * Extended Nagios Notification Mail
  *
+ * Install:
+ *
+ * replace the notifying definitions in the misccomands.cfg. Make sure that PHP
+ * is installed and the path to the PHP-binary is correct.
+ *
+ *
+ * # Example misccommands.cfg
+ * define command{
+ *       command_name    host-notify-by-email
+ *       command_line    /usr/bin/php -q /opt/nagios_mail.php
+ *       }
+ *
+ * define command{
+ *       command_name    notify-by-email
+ *       command_line    /usr/bin/php -q /opt/nagios_mail.php
+ *       }
+ *
+ *
+ * Configuration:
+ *
+ * configure your domain address below in this file.
+ *
+ *
  * @author     Otto Berger <otto@bergerdata.de>
  * @copyright  Copyright (c) 2009, Otto Berger
  * @license    http://opensource.org/licenses/lgpl-license.php GNU Lesser General Public License
- * @version    $Id: nagios-mail.php 16 2008-11-11 21:50:02Z otto $
+ * @version    $Id$
  */
 
 
 // CONFIGURATION
 
 $config["mail_from_address"] 	= "monitoring@example.com";
+$config["mail_add_to_address"]  = ""; // additional recipient (leave empty normally)
 $config["mail_subject_prefix"] 	= "[M]";
 $config["mail_subject_suffix"] 	= "";
 $config["nagios_url"]           = "http://www.example.com/nagios";
-$config["debug"]                = true; // adds all nagios vars to text-mail body
+$config["debug"]                = false; // adds all available nagios vars to the mail body
 
 // HOST DETAILS
 
@@ -39,6 +63,7 @@ $config["groups"][] = array(
 					"name"          => "Address",
 					"nagios_env"    => "HOSTADDRESS",
 					"required"      => true,
+					"type"          => "link",
 					),
 				array(
 					"name"          => "Description",
@@ -382,6 +407,7 @@ $config["groups"][] = array(
 					"name"          => "eMail",
 					"nagios_env"    => "CONTACTEMAIL",
 					"required"      => false,
+					"type"          => "mail",
 					),
 				array(
 					"name"          => "Pager",
@@ -638,25 +664,17 @@ class Nagios_Mail {
 				$subject .= " " . $this->config["mail_subject_suffix"];
 			}
 
+
+			$boundary = "_" . md5("Nagios_Mail_" . microtime());
+
 			$headers = array();
 			$headers[] = "From: " . $this->config["mail_from_address"];
+			$headers[] = 'Content-Type: multipart/alternative; boundary="=' . $boundary . '"';
 
-			$headers = array(
-				"From" => $this->config["mail_from_address"],
-				"Subject" => $subject,
-				);
-
-			if (class_exists("Mail_mime")) {
-
-				$mime = new Mail_mime("\n");
-				$mime->setTXTBody($this->getBodyText());
-				$mime->setHTMLBody($this->getBodyHTML());
-
-				$body = $mime->get();
-
-			} else {
-				$body = $this->getBodyText();
-			}
+			$body = "\n--=" . $boundary . "\nContent-Transfer-Encoding: 7bit\nContent-Type: text/plain; charset=\"ISO-8859-1\"\n\n";
+			$body .= $this->getBodyText();
+			$body .= "\n--=" . $boundary . "\nContent-Transfer-Encoding: 7bit\nContent-Type: text/html; charset=\"ISO-8859-1\"\n\n";
+			$body .= $this->getBodyHTML();
 
 			if ($this->config["debug"]) {
 				ksort($this->nagios);
@@ -665,9 +683,11 @@ class Nagios_Mail {
 				$body .= ob_get_clean();
 			}
 
-			$mail = Mail::factory('mail');
-			$mail->send($this->nagios["CONTACTEMAIL"], $mime->headers($headers), $body);
+			if ($this->config["mail_add_to_address"]) {
+				$this->nagios["CONTACTEMAIL"] .= ", " . $this->config["mail_add_to_address"];
+			}
 
+			mail($this->nagios["CONTACTEMAIL"], $subject, $body, implode("\n", $headers));
 		}
 	}
 
@@ -770,124 +790,20 @@ class Nagios_Mail {
 		<html xmlns="http://www.w3.org/1999/xhtml">
 		<head>
 		<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
-		<style type="text/css">
-		<!--
-		body {
-			font-family: "Courier New", Courier, monospace;
-			font-size: 12px;
-		}
-		.info {
-			border:1px solid #CCCCCC;
-			width:300px;
-			margin-bottom:5px;
-		}
-		.info td {
-			font-family: "Courier New", Courier, monospace;
-			font-size: 10px;
-			padding-top:1px;
-			padding-bottom:1px;
-			padding-left:2px;
-			padding-right:2px;
-		}
-		.info thead td {
-			font-weight:bold;
-			color:#003399;
-			background-color:#CCCCCC;
-			/*border-bottom:1px solid #666666;*/
-		}
-		.info tbody td {
-			width:auto;
-		}
-		.info .descr {
-			width:120px;
-			font-weight:bold;
-		}
-
-		h1 {
-			font-size:20px;
-			font-weight:bold;
-			color:#666666;
-			margin:0;
-			margin-top:5px;
-			margin-bottom:5px;
-			display:block;
-			float:left;
-		}
-		h2 {
-			font-size:12px;
-			font-weight:bold;
-			color:#666666;
-			border-bottom:1px solid #CCCCCC;
-			clear:both;
-			margin-top:15px;
-		}
-		.head {
-			background-color:#CCC;
-			padding:5px;
-			clear:both;
-		}
-		a {
-			color:#003399;
-		}
-		.subject {
-			font-weight:bold;
-		}
-		.output {
-			margin-bottom:10px;
-		}
-		.details table {
-			border:1px solid #CFCFCF;
-			width:280px;
-			margin-bottom:5px;
-			float:left;
-			margin-right:5px;
-		}
-		.details td {
-			font-family: "Courier New", Courier, monospace;
-			font-size: 11px;
-			padding-top:1px;
-			padding-bottom:1px;
-			padding-left:2px;
-			padding-right:2px;
-		}
-		.details thead td {
-			font-weight:bold;
-			color:#003399;
-			background-color:#CFCFCF;
-			/*border-bottom:1px solid #666666;*/
-		}
-		.details tbody td {
-			width:auto;
-		}
-		.details table .descr {
-			width:120px;
-			font-weight:bold;
-		}
-		.color {
-			float:left;
-			height:16px;
-			width:16px;
-			margin-right:5px;
-			margin-top:7px;
-		}
-
-
-
-		-->
-		</style>
 		</head>
 
-		<body>
+		<body style="font-family: 'Courier New', Courier, monospace; font-size: 11px;">
 
 END;
 
 
-		$output_html[] = '<div class="color" style="background-color:' . $this->notification_color . ';"></div><h1>Nagios Monitoring Message</h1>';
-		$output_html[] = '<div class="head">';
-		$output_html[] = '<div class="subject">';
+		$output_html[] = '<div style="float:left;height:16px;width:16px;margin:7px 5px 0 0;background-color:' . $this->notification_color . ';"></div>';
+		$output_html[] = '<h1 style="font-size:20px;font-weight:bold;color:#666666;margin:5px 0 5px 0;display:block;float:left;">Nagios Monitoring Message</h1>';
+		$output_html[] = '<div style="background-color:#CCC;padding:5px;clear:both;">';
+		$output_html[] = '<div style="font-weight:bold;">';
 		$output_html[] = $this->str_info;
 		$output_html[] = '</div>';
-		$output_html[] = '<div class="output">';
+		$output_html[] = '<div style="margin-bottom:10px;">';
 
 		if (strpos($this->notification_type, "HOST") !== false) {
 			$output_html[] = '<strong>Output:</strong> ' . $this->nagios["HOSTOUTPUT"];
@@ -898,7 +814,7 @@ END;
 		$output_html[] = '</div>';
 
 		if ($this->config["nagios_url"]) {
-			$output_html[] = '<div class="links">';
+			$output_html[] = '<div>';
 
 			$output_html[] = '<a href="' . $this->config["nagios_url"] . '">' . $this->config["nagios_url"] . '</a>';
 
@@ -931,10 +847,10 @@ END;
 
 				if ($branch_active) {
 
-					$group_html[] = "<div class=\"details\">";
-					$group_html[] = "<table cellspacing=\"0\" cellpadding=\"0\">";
-					$group_html[] = "<thead>\n<tr><td colspan=\"2\">" . $branch["name"] . "</td></tr></thead>";
-					$group_html[] = "<tbody>";
+					$group_html[] = '<div>';
+					$group_html[] = '<table cellspacing="0" cellpadding="0" style="font-size: 11px;border:1px solid #CFCFCF; width:280px; margin: 0 5px 5px 0; float:left;">';
+					$group_html[] = '<thead style="font-weight:bold; color:#003399; background-color:#CFCFCF;"><tr><td colspan="2">' . $branch["name"] . '</td></tr></thead>';
+					$group_html[] = '<tbody>';
 
 					foreach ($branch["data"] as $field) {
 
@@ -947,15 +863,24 @@ END;
 									$field["value"] = date("d.m.Y H:i", $field["value"]);
 								break;
 								case "link" :
-									$field["value"] = sprintf("<a href=\"%s\">%s</a>", $field["value"], $field["value"]);
+
+									if (stripos($field["value"], "http://") === false) {
+										$field["value"] = sprintf("<a href=\"http://%s\">%s</a>", $field["value"], $field["value"]);
+									} else {
+										$field["value"] = sprintf("<a href=\"%s\">%s</a>", $field["value"], $field["value"]);
+									}
+
+								break;
+								case "mail" :
+									$field["value"] = sprintf("<a href=\"mailto:%s\">%s</a>", $field["value"], $field["value"]);
 								break;
 
 							}
 
 							if ($field["name"]) {
-								$group_html[] = sprintf("<tr><td class=\"descr\">%s</td><td>%s</td></tr>", $field["name"], $field["value"]);
+								$group_html[] = sprintf('<tr><td style="padding:1px 2px 1px 2px;width:120px; font-weight:bold;">%s</td><td>%s</td></tr>', $field["name"], $field["value"]);
 							} else {
-								$group_html[] = sprintf("<tr><td colspan=\"2\">%s</td></tr>", $field["value"]);
+								$group_html[] = sprintf('<tr><td style="padding:1px 2px 1px 2px;" colspan="2">%s</td></tr>', $field["value"]);
 							}
 						}
 					}
@@ -969,26 +894,17 @@ END;
 			}
 
 			if (count($group_html)) {
-				$output_html[] = "<h2>" . $group["name"] . "</h2>";
+				$output_html[] = '<h2 style="font-size:12px;font-weight:bold;color:#666666;border-bottom:1px solid #CCCCCC;clear:both;margin-top:15px;">' . $group['name'] . '</h2>';
 				$output_html[] = implode("\n", $group_html);
 			}
 		}
 
-		$output_html[] = "</body>\n</html>";
+		$output_html[] = '</body></html>';
 
 		return implode("\n", $output_html);
-
 	}
-
 }
 
-
-
-
-
-
-@include('Mail.php');
-@include('Mail/mime.php');
 
 $nagios = new Nagios_Mail();
 $nagios->setConfig($config);
