@@ -34,11 +34,11 @@
 
 // CONFIGURATION
 
-$config["mail_from_address"] 	= "monitoring@hk-net.de";
+$config["mail_from_address"] 	= "monitoring@example.com";
 $config["mail_add_to_address"]  = ""; // additional recipient (leave empty normally)
 $config["mail_subject_prefix"] 	= "[M]";
 $config["mail_subject_suffix"] 	= "";
-$config["nagios_url"]           = "http://mon.hk-net.de/nagios";
+$config["nagios_url"]           = "http://www.example.com/nagios";
 $config["debug"]                = false; // adds all available nagios vars to the mail body
 
 // HOST DETAILS
