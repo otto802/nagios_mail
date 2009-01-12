@@ -1,6 +1,6 @@
 Extended Nagios Notification Mail
 
-Install:
+INSTALL:
 
 replace the notifying definitions in the misccomands.cfg. Make sure that PHP
 is installed and the path to the PHP-binary is correct.
@@ -18,9 +18,19 @@ define command{
       }
 
 
-Configuration:
+CONFIGURATION:
 
 configure your domain address etc. at the top of the nagios_mail.php file.
+
+
+TEST:
+
+put your email-address in $config["mail_add_to_address"] statement. 
+Then run the script from command-line:
+
+/usr/bin/php -q /opt/nagios_mail.php
+
+You should recieve a test-email to the specified address.
 
 
 @author     Otto Berger <otto@bergerdata.de>
