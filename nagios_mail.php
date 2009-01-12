@@ -34,11 +34,11 @@
 
 // CONFIGURATION
 
-$config["mail_from_address"] 	= "monitoring@example.com";
+$config["mail_from_address"] 	= "monitoring@hk-net.de";
 $config["mail_add_to_address"]  = ""; // additional recipient (leave empty normally)
 $config["mail_subject_prefix"] 	= "[M]";
 $config["mail_subject_suffix"] 	= "";
-$config["nagios_url"]           = "http://www.example.com/nagios";
+$config["nagios_url"]           = "http://mon.hk-net.de/nagios";
 $config["debug"]                = false; // adds all available nagios vars to the mail body
 
 // HOST DETAILS
@@ -580,7 +580,35 @@ class Nagios_Mail {
 			}
 		}
 
-		if (!empty($this->nagios["CONTACTEMAIL"])) {
+		if (!count($this->nagios)) {
+
+			// Test-Mode
+
+			foreach ($this->config["groups"] as $group) {
+				foreach ($group["branches"] as $branch) {
+					foreach ($branch["data"] as $field) {
+
+						if (!isset($field["type"])) {
+							$field["type"] = false;
+						}
+
+						if ($field["type"] == "timestamp") {
+							$value = time();
+						} else {
+							$value = $field["nagios_env"];
+						}
+						$this->nagios[$field["nagios_env"]] = $value;
+					}
+				}
+			}
+			$this->config["mail_subject_prefix"] = $this->config["mail_subject_prefix"] . " TESTMODE: ";
+			$this->nagios["CONTACTEMAIL"] = "";
+			$this->nagios["NOTIFICATIONTYPE"] = "";
+			$this->nagios["NOTIFICATIONNUMBER"] = "";
+		}
+
+
+		if (!empty($this->nagios["CONTACTEMAIL"]) || $this->config["mail_add_to_address"]) {
 
 			$str_info = "";
 
@@ -683,17 +711,22 @@ class Nagios_Mail {
 				$body .= ob_get_clean();
 			}
 
-			if ($this->config["mail_add_to_address"]) {
+			if ($this->nagios["CONTACTEMAIL"] && $this->config["mail_add_to_address"]) {
 				$this->nagios["CONTACTEMAIL"] .= ", " . $this->config["mail_add_to_address"];
+			} elseif (empty($this->nagios["CONTACTEMAIL"])) {
+				$this->nagios["CONTACTEMAIL"] = $this->config["mail_add_to_address"];
 			}
 
 			mail($this->nagios["CONTACTEMAIL"], $subject, $body, implode("\n", $headers));
+
+		} else {
+
+			die("\nCONTACTEMAIL env-var is empty (not run from Nagios?) or \"mail_add_to_address\" not configured (Testmode)\n\n");
 		}
 	}
 
 
 	public function getBodyText() {
-
 
 		$output_text[] = $this->str_info;
 
@@ -732,6 +765,10 @@ class Nagios_Mail {
 						$field["value"] = trim($this->nagios[$field["nagios_env"]]);
 
 						if (!empty($field["value"]) || $field["required"]) {
+
+							if (!isset($field["type"])) {
+								$field["type"] = false;
+							}
 
 							switch($field["type"]) {
 								case "timestamp" :
@@ -857,6 +894,10 @@ END;
 						$field["value"] = trim($this->nagios[$field["nagios_env"]]);
 
 						if (!empty($field["value"]) || $field["required"]) {
+
+							if (!isset($field["type"])) {
+								$field["type"] = false;
+							}
 
 							switch($field["type"]) {
 								case "timestamp" :
