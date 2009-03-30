@@ -2,6 +2,8 @@
 /**
  * Extended Nagios Notification Mail
  *
+ * Version 0.5
+ *
  * Install:
  *
  * replace the notifying definitions in the misccomands.cfg. Make sure that PHP
@@ -545,16 +547,16 @@ $config["groups"][] = array(
 
 class Nagios_Mail {
 
-	private $config = array();
-	private $nagios = array();
-	private $notification_type;
-	private $notification_color;
+	var $config = array();
+	var $nagios = array();
+	var $notification_type;
+	var $notification_color;
 
-	public function setConfig($config) {
+	function setConfig($config) {
 		$this->config = (array)$config;
 	}
 
-	public function __construct() {
+	function __construct() {
 
 		foreach ($_ENV as $key => $value) {
 
@@ -564,7 +566,7 @@ class Nagios_Mail {
 		}
 	}
 
-	public function build() {
+	function build() {
 
 		if (!empty($this->nagios["SERVICECHECKTYPE"])) {
 			$this->notification_type = "SERVICE";
@@ -726,7 +728,7 @@ class Nagios_Mail {
 	}
 
 
-	public function getBodyText() {
+	function getBodyText() {
 
 		$output_text[] = $this->str_info;
 
@@ -819,7 +821,7 @@ class Nagios_Mail {
 
 
 
-	public function getBodyHTML() {
+	function getBodyHTML() {
 
 		$output_html[] = <<< END
 
@@ -905,7 +907,7 @@ END;
 								break;
 								case "link" :
 
-									if (stripos($field["value"], "http://") === false) {
+									if (strpos($field["value"], "http://") === false) {
 										$field["value"] = sprintf("<a href=\"http://%s\">%s</a>", $field["value"], $field["value"]);
 									} else {
 										$field["value"] = sprintf("<a href=\"%s\">%s</a>", $field["value"], $field["value"]);
