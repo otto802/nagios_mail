@@ -1,0 +1,31 @@
+
+CHANGELOG
+
+0.8.0
+  added additional header configuration
+  improved documentation
+  improved debug mode
+
+0.7.0
+  fixed multipart issue (webmailer compatibility)
+  added safari header (iPhone Mail compatibility)
+
+0.6.0
+  added subject templates
+  added ability to disable sections
+
+0.5.0
+  added PHP4 compatibility
+
+0.4.0
+  added test-mode (if run from command-line)
+  removed php-notices
+
+0.3.0
+  added readme
+  removed Mail_mime dependency
+  removed css definitions for webmail compatibility
+  added links to hostname
+
+0.2.0
+  changed script to object oriented programming
