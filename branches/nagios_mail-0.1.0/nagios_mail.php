@@ -2,7 +2,7 @@
 /**
  * Extended Nagios Notification Mail
  *
- * Version 0.6
+ * Version 0.8
  *
  * Install:
  *
@@ -36,15 +36,70 @@
 
 // CONFIGURATION
 
-$config['mail_from_address'] 	= 'monitoring@example.com';
-$config['mail_add_to_address']  = ''; // additional recipient (leave empty normally)
+/**
+* Nagios url
+*
+* url to your nagios webinterface. Used for command-links inside the mail.
+*/
+$config['nagios_url']           = 'http://example.com/nagios';
 
+/**
+* From-address of the notification mail
+*
+*/
+$config['mail_from_address'] 	= 'monitoring@example.com';
+
+/**
+* additional to mail-to-address
+*
+* this address is also used as reciepient while using the test-mode
+* from command-line (and not run from nagios)
+*/
+$config['mail_add_to_address']  = '';
+
+/**
+* mail-subject template (host notification)
+*
+* you can use all Nagios-vars here, see example
+*/
 $config['mail_subject_host']    = '[M] Host %%NOTIFICATIONTYPE%% %%HOSTNAME%% is %%HOSTSTATE%% (%%NOTIFICATIONNUMBER%%)';
+
+/**
+* mail-subject template (service notification)
+*
+* you can use all Nagios-vars here, see example
+*/
 $config['mail_subject_service'] = '[M] Service %%NOTIFICATIONTYPE%% %%HOSTNAME%% %%SERVICEDESC%% is %%SERVICESTATE%% (%%NOTIFICATIONNUMBER%%)';
 
-$config['nagios_url']           = 'http://www.example.com/nagios';
-$config['debug']                = false; // adds all available nagios vars to the mail body
+/**
+* additional mail-headers
+*
+* adds additional header-lines to the mail header. In this example
+* uncomment the following lines to send outlook high-priority mails.
+*/
+$config['mail_add_headers'] = array(
+	//'X-Priority: 1 (Highest)',
+	//'X-MSMail-Priority: High',
+	//'Importance: High',
+	);
 
+/**
+* debug mode
+*
+* enables the debug mode. All variables sent from nagios are printed at the end
+* of the mail. Attention: only visible in the text-only variant of the mail!
+*/
+$config['debug'] = false;
+
+
+
+
+/**
+* Advanced configuration of mail bodies
+*
+* experts only ;)
+* customize the view of the nagios-variables.
+*/
 
 // HOST DETAILS
 
@@ -703,24 +758,26 @@ class Nagios_Mail {
 				$this->notification_color = 'blue';
 			}
 
-			$boundary = '_' . md5('Nagios_Mail_' . microtime());
+			$boundary = '----------_' . md5('Nagios_Mail_' . microtime());
 
 			$headers = array();
+			$headers[] = 'MIME-Version: 1.0';
 			$headers[] = 'From: ' . $this->config['mail_from_address'];
-			$headers[] = 'Content-Type: multipart/alternative; boundary="=' . $boundary . '"';
 
-			$body = "\n--=" . $boundary . "\nContent-Transfer-Encoding: 7bit\nContent-Type: text/plain; charset=\"ISO-8859-1\"\n\n";
-			$body .= $this->getBodyText();
-			$body .= "\n--=" . $boundary . "\nContent-Transfer-Encoding: 7bit\nContent-Type: text/html; charset=\"ISO-8859-1\"\n\n";
-			$body .= $this->getBodyHTML();
-			$body .= "\n--=" . $boundary . "--\n";
-
-			if ($this->config['debug']) {
-				ksort($this->nagios);
-				ob_start();
-				var_dump($this->nagios);
-				$body .= ob_get_clean();
+			foreach ($this->config['mail_add_headers'] as $header) {
+				$headers[] = $header;
 			}
+
+			$headers[] = "Content-Type: multipart/alternative;\n boundary=\"" . $boundary . "\"";
+
+
+
+			$body = "\n--" . $boundary . "\nContent-Transfer-Encoding: 8bit\nContent-Type: text/plain; charset=ISO-8859-15\n\n";
+			$body .= $this->getBodyText();
+			$body .= "\n--" . $boundary . "\nContent-Transfer-Encoding: 8bit\nContent-Type: text/html; charset=ISO-8859-15\n\n";
+			$body .= $this->getBodyHTML();
+			$body .= "\n--" . $boundary . "--\n";
+
 
 			if ($this->nagios['CONTACTEMAIL'] && $this->config['mail_add_to_address']) {
 				$this->nagios['CONTACTEMAIL'] .= ', ' . $this->config['mail_add_to_address'];
@@ -732,7 +789,7 @@ class Nagios_Mail {
 
 		} else {
 
-			die('\nCONTACTEMAIL env-var is empty (not run from Nagios?) or \'mail_add_to_address\' not configured (Testmode)\n\n');
+			die("\nCONTACTEMAIL env-var is empty (not run from Nagios?) or 'mail_add_to_address' not configured (Testmode)\n\n");
 		}
 	}
 
@@ -829,6 +886,13 @@ class Nagios_Mail {
 			$output_text[] = '';
 		}
 
+		if ($this->config['debug']) {
+			ksort($this->nagios);
+			ob_start();
+			var_dump($this->nagios);
+			$output_text[] = "*DEBUG-OUTPUT*";
+			$output_text[] = ob_get_clean();
+		}
 
 		return implode("\n", $output_text);
 
@@ -843,16 +907,17 @@ class Nagios_Mail {
 		<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 		<html xmlns="http://www.w3.org/1999/xhtml">
 		<head>
-		<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+		<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-15" />
+		<meta name = "viewport" content = "width = 600">
 		</head>
 
-		<body style="font-family: 'Courier New', Courier, monospace; font-size: 11px;">
+		<body style="font-family: 'Courier New', Courier, monospace; font-size: 8pt;">
 
 END;
 
 
 		$output_html[] = '<div style="float:left;height:16px;width:16px;margin:7px 5px 0 0;background-color:' . $this->notification_color . ';"></div>';
-		$output_html[] = '<h1 style="font-size:20px;font-weight:bold;color:#666666;margin:5px 0 5px 0;display:block;float:left;">Nagios Monitoring Message</h1>';
+		$output_html[] = '<h1 style="font-size:15pt;font-weight:bold;color:#666666;margin:5px 0 5px 0;display:block;float:left;">Nagios Monitoring Message</h1>';
 		$output_html[] = '<div style="background-color:#CCC;padding:5px;clear:both;">';
 		$output_html[] = '<div style="font-weight:bold;">';
 		$output_html[] = $this->str_info;
@@ -909,8 +974,7 @@ END;
 
 				if ($branch_active) {
 
-					$group_html[] = '<div>';
-					$group_html[] = '<table cellspacing="0" cellpadding="0" style="font-size: 11px;border:1px solid #CFCFCF; width:280px; margin: 0 5px 5px 0; float:left;">';
+					$group_html[] = '<table cellspacing="0" cellpadding="0" style="font-size: 8pt;border:1px solid #CFCFCF; width:280px; margin: 0 5px 5px 0; float:left;">';
 					$group_html[] = '<thead style="font-weight:bold; color:#003399; background-color:#CFCFCF;"><tr><td colspan="2">' . $branch['name'] . '</td></tr></thead>';
 					$group_html[] = '<tbody>';
 
@@ -953,14 +1017,13 @@ END;
 
 					$group_html[] = '</tbody>';
 					$group_html[] = '</table>';
-					$group_html[] = '</div>';
 
 					$group_html[] = '';
 				}
 			}
 
 			if (count($group_html)) {
-				$output_html[] = '<h2 style="font-size:12px;font-weight:bold;color:#666666;border-bottom:1px solid #CCCCCC;clear:both;margin-top:15px;">' . $group['name'] . '</h2>';
+				$output_html[] = '<h2 style="font-size:10pt;font-weight:bold;color:#666666;border-bottom:1px solid #CCCCCC;clear:both;margin-top:15px;">' . $group['name'] . '</h2>';
 				$output_html[] = implode("\n", $group_html);
 			}
 		}
