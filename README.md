@@ -37,6 +37,19 @@ define command {
 
 * You should recieve a test-email to the specified address.
 
+## FAQ
+
+    Q: i want to use ICINGA with it. Is it possible?
+    A: Yes, but you have to replace in Line 643 „_NAGIOS“ with „_ICINGA“
+
+    Q: Notifications through Nagios/Ichinga are empty. What to check?
+    A: check your php.ini for variables_order = “EGPCS”, the „E“ is important.
+
+    Q: Notifications through Nagios/Ichinga are still empty. What to check?
+    A: check nagios.cfg/icinga.cfg for the following setting: enable_environment_macros=1
+
+
+## Author
 
 ```
 @author     Otto Berger <otto@bergerdata.de>
